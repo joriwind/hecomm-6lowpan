@@ -6,7 +6,6 @@ import (
 	"net"
 
 	coap "github.com/dustin/go-coap"
-	"github.com/joriwind/hecomm-fog/hecomm"
 )
 
 //Server Object defining the server
@@ -14,7 +13,6 @@ type Server struct {
 	ctx     context.Context
 	comlink chan Message
 	address net.UDPAddr
-	Nodes   []Node
 }
 
 //NewServer create new server
@@ -24,15 +22,6 @@ func NewServer(ctx context.Context, comlink chan Message, host net.UDPAddr) *Ser
 		comlink: comlink,
 		address: host,
 	}
-}
-
-//Node Connected node information
-type Node struct {
-	Addr   net.UDPAddr
-	Link   hecomm.LinkContract
-	OsSKey [32]byte
-	//AppSKey & NwkSKey managed by border router
-
 }
 
 //Start Start listening on configured UDP address
@@ -69,7 +58,7 @@ func (s *Server) Start() error {
 
 //handleHello Handle the hello path request
 func handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
-	log.Printf("Got message in handleA: path=%q: %#v from %v", m.Path(), m, a)
+	log.Printf("Got message in handleHello: path=%q: %#v from %v", m.Path(), m, a)
 	if m.IsConfirmable() {
 		res := &coap.Message{
 			Type:      coap.Acknowledgement,
@@ -89,7 +78,11 @@ func handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message 
 //handleReq Handle the request path
 func handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	//TODO: startup hecomm protocol
-	log.Printf("Got message in handleB: path=%q: %#v from %v", m.Path(), m, a)
+	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m, a)
+
+	//Creating new node
+	node := Node{Addr: a}
+
 	if m.IsConfirmable() {
 		res := &coap.Message{
 			Type:      coap.Acknowledgement,
