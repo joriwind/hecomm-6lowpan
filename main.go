@@ -47,9 +47,9 @@ func main() {
 	go func() {
 		err := server.Start()
 		if err != nil {
-			log.Fatalf("Exited with error: %v", err)
+			log.Fatalf("Server exited with error: %v", err)
 		} else {
-			log.Printf("Exited\n")
+			log.Printf("Server exited\n")
 		}
 	}()
 

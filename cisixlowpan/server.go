@@ -1,9 +1,13 @@
 package cisixlowpan
 
-import "context"
-import "net"
-import "github.com/joriwind/hecomm-fog/hecomm"
-import "log"
+import (
+	"context"
+	"log"
+	"net"
+
+	coap "github.com/dustin/go-coap"
+	"github.com/joriwind/hecomm-fog/hecomm"
+)
 
 //Server Object defining the server
 type Server struct {
@@ -22,17 +26,12 @@ func NewServer(ctx context.Context, comlink chan Message, host net.UDPAddr) *Ser
 	}
 }
 
-type packet struct {
-	Addr net.UDPAddr
-	Data []byte
-}
-
 //Node Connected node information
 type Node struct {
 	Addr   net.UDPAddr
 	Link   hecomm.LinkContract
-	OsSKey [16]byte
-	//AppSKey & NwkSKey managed by slip
+	OsSKey [32]byte
+	//AppSKey & NwkSKey managed by border router
 
 }
 
@@ -44,28 +43,65 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 
+	mux := coap.NewServeMux()
+	mux.Handle("/hello", coap.FuncHandler(handleHello))
+	mux.Handle("/req", coap.FuncHandler(handleReq))
+
 	log.Printf("Startin UDP server on %v\n", &s.address)
 
-	buf := make([]byte, 1024)
+	//Start listening for coap packets --> send error back if occurs
+	ch := make(chan error)
+	go func() {
+		err := coap.Serve(ln, mux)
+		ch <- err
+	}()
 
-	for {
-		n, addr, err := ln.ReadFromUDP(buf)
-		if err != nil {
-			return err
-		}
+	//Block until stop from main or error from coap server
+	select {
+	case err := <-ch:
+		return err
+	case <-s.ctx.Done():
+		return nil
 
-		p := packet{Addr: *addr, Data: buf[:n]}
-		go handleUDPPacket(p)
-
-		select {
-		case <-s.ctx.Done():
-			return nil
-		default:
-
-		}
 	}
+
 }
 
-func handleUDPPacket(p packet) error {
+//handleHello Handle the hello path request
+func handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
+	log.Printf("Got message in handleA: path=%q: %#v from %v", m.Path(), m, a)
+	if m.IsConfirmable() {
+		res := &coap.Message{
+			Type:      coap.Acknowledgement,
+			Code:      coap.Content,
+			MessageID: m.MessageID,
+			Token:     m.Token,
+			Payload:   []byte("hello to you to!"),
+		}
+		res.SetOption(coap.ContentFormat, coap.TextPlain)
+
+		log.Printf("Transmitting from A %#v", res)
+		return res
+	}
+	return nil
+}
+
+//handleReq Handle the request path
+func handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
+	//TODO: startup hecomm protocol
+	log.Printf("Got message in handleB: path=%q: %#v from %v", m.Path(), m, a)
+	if m.IsConfirmable() {
+		res := &coap.Message{
+			Type:      coap.Acknowledgement,
+			Code:      coap.Content,
+			MessageID: m.MessageID,
+			Token:     m.Token,
+			Payload:   []byte("good bye!"),
+		}
+		res.SetOption(coap.ContentFormat, coap.TextPlain)
+
+		log.Printf("Transmitting from B %#v", res)
+		return res
+	}
 	return nil
 }
