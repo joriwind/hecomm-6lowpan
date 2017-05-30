@@ -15,6 +15,13 @@ import (
 
 	coap "github.com/dustin/go-coap"
 	"github.com/joriwind/hecomm-6lowpan/cisixlowpan"
+	"github.com/joriwind/hecomm-6lowpan/storage"
+)
+
+type key int
+
+const (
+	keyStorageID key = iota
 )
 
 func main() {
@@ -37,8 +44,12 @@ func main() {
 		return
 	}
 
+	//Storage of nodes
+	store := storage.NewStorage()
+
 	//Create server context
 	ctx, cancel := context.WithCancel(context.Background())
+	ctxv := context.WithValue(ctx, keyStorageID, store)
 	defer cancel()
 
 	//Starting 6LoWPAN server

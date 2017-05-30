@@ -89,7 +89,7 @@ func (s *Server) handleProviderConnection(conn net.Conn) {
 
 	//Get the storage pointer
 	var store *storage.Storage
-	store, ok := s.ctx.Value("storage").(*storage.Storage)
+	store, ok := s.ctx.Value(main.keyStorageID).(*storage.Storage)
 	if !ok {
 		log.Fatalf("Could not assert storage!: %v", s.ctx.Value("storage"))
 	}
