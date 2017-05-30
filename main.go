@@ -75,7 +75,10 @@ func main() {
 					break
 				}
 				code := coap.COAPCode(uint8(i))
-				sendCoapRequest(code, subcommand[1], subcommand[2], subcommand[3])
+				err := cisixlowpan.SendCoapRequest(code, subcommand[1], subcommand[2], subcommand[3])
+				if err != nil {
+					fmt.Printf("Error in sending frame!: %v\n", err)
+				}
 
 			case "help":
 
@@ -84,32 +87,5 @@ func main() {
 				fmt.Printf("Did not understand command: %v\n", command[0])
 			}
 		}
-	}
-}
-
-func sendCoapRequest(code coap.COAPCode, destination string, path string, payload string) {
-	req := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.GET,
-		MessageID: 12345,
-		Payload:   []byte(payload),
-	}
-
-	req.SetOption(coap.ETag, "weetag")
-	req.SetOption(coap.MaxAge, 3)
-	req.SetPathString(path)
-
-	c, err := coap.Dial("udp", destination)
-	if err != nil {
-		log.Fatalf("Error dialing: %v", err)
-	}
-
-	rv, err := c.Send(req)
-	if err != nil {
-		log.Fatalf("Error sending request: %v", err)
-	}
-
-	if rv != nil {
-		log.Printf("Response payload: %s", rv.Payload)
 	}
 }
