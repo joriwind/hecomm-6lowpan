@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 	coap "github.com/dustin/go-coap"
 	"github.com/joriwind/hecomm-6lowpan/cisixlowpan"
 	"github.com/joriwind/hecomm-6lowpan/storage"
+	"github.com/joriwind/hecomm-api/hecommAPI"
 )
 
 type key int
@@ -46,11 +48,15 @@ func main() {
 
 	//Storage of nodes
 	store := storage.NewStorage()
-
 	//Create server context
 	ctx, cancel := context.WithCancel(context.Background())
-	ctxv := context.WithValue(ctx, keyStorageID, store)
 	defer cancel()
+
+	cb := hecommSixlowpanAPI{store: store}
+	//Start hecomm platform
+	hecommAPI.NewPlatform(ctx, "", tls.Certificate{}, nil, cb)
+
+	ctxv := context.WithValue(ctx, keyStorageID, store)
 
 	//Starting 6LoWPAN server
 	channel := make(chan cisixlowpan.Message)
@@ -86,7 +92,7 @@ func main() {
 					break
 				}
 				code := coap.COAPCode(uint8(i))
-				err := cisixlowpan.SendCoapRequest(code, subcommand[1], subcommand[2], subcommand[3])
+				err = cisixlowpan.SendCoapRequest(code, subcommand[1], subcommand[2], subcommand[3])
 				if err != nil {
 					fmt.Printf("Error in sending frame!: %v\n", err)
 				}
