@@ -19,13 +19,25 @@ const (
 	KeySize int = 32
 )
 
-//Server Struct defining the hecomm server
-type Server struct {
+//Platform Struct defining the hecomm server
+type Platform struct {
 	ctx         context.Context
 	address     string
 	credentials tls.Certificate
-	fogAddress  string
 }
+
+type fog struct{
+	Address string
+	TlsConfig tls.Config
+}
+const (
+	FogCredentials fog = fog{
+		Address: "192.168.0.1",
+		TlsConfig: tls.Config{
+
+		},
+	}
+)
 
 //Link A link between node and the contract
 type Link struct {
@@ -33,21 +45,20 @@ type Link struct {
 	osSKey       [KeySize]byte
 }
 
-//NewServer Create new hecomm server API
-func NewServer(ctx context.Context, address string, credentials tls.Certificate, fogAddress string) (*Server, error) {
-	var srv Server
+//NewPlatform Create new hecomm server API
+func NewPlatform(ctx context.Context, address string, credentials tls.Certificate) (*Platform, error) {
+	var srv Platform
 
 	srv.ctx = ctx
 	srv.address = address
 	srv.credentials = credentials
-	srv.fogAddress = fogAddress
 
 	return &srv, nil
 }
 
 //Start Start listening
-func (s *Server) Start() error {
-	config := tls.Config{Certificates: []tls.Certificate{s.credentials}}
+func (pl *Platform) Start() error {
+	config := tls.Config{Certificates: []tls.Certificate{pl.credentials}}
 	listener, err := tls.Listen("tcp", "localhost:8000", &config)
 	if err != nil {
 		return err
@@ -71,12 +82,12 @@ func (s *Server) Start() error {
 		//Check if connection available or context
 		select {
 		case conn := <-chanConn:
-			if conn.RemoteAddr().String() == s.fogAddress {
-				s.handleProviderConnection(conn)
+			if conn.RemoteAddr().String() == FogCredentials.Address {
+				pl.handleProviderConnection(conn)
 			} else {
 				log.Printf("hecommplatform server: wrong connection: %v\n", conn)
 			}
-		case <-s.ctx.Done():
+		case <-pl.ctx.Done():
 			return nil
 		}
 
@@ -84,14 +95,14 @@ func (s *Server) Start() error {
 
 }
 
-func (s *Server) handleProviderConnection(conn net.Conn) {
+func (pl *Platform) handleProviderConnection(conn net.Conn) {
 	buf := make([]byte, 2048)
 
 	//Get the storage pointer
 	var store *storage.Storage
-	store, ok := s.ctx.Value(main.keyStorageID).(*storage.Storage)
+	store, ok := pl.ctx.Value(main.keyStorageID).(*storage.Storage)
 	if !ok {
-		log.Fatalf("Could not assert storage!: %v", s.ctx.Value("storage"))
+		log.Fatalf("Could not assert storage!: %v", pl.ctx.Value("storage"))
 	}
 
 	//The to be created link
@@ -220,7 +231,7 @@ func (s *Server) handleProviderConnection(conn net.Conn) {
 			//Get corresponding node
 			node, ok := store.GetNode(eui)
 			if !ok {
-				log.Printf("get node error: %s\n", err)
+				log.Printf("get node error: %pl\n", err)
 
 				//Send bad response
 				bytes, err := hecomm.NewResponse(false)
@@ -244,7 +255,7 @@ func (s *Server) handleProviderConnection(conn net.Conn) {
 				return
 			}
 			//Define link in state
-			s.links[eui] = link
+			pl.links[eui] = link
 			log.Printf("Link is set: %v\n", link)
 			//Clear link
 			link = Link{}
@@ -293,14 +304,14 @@ func alice(link *Link, conn net.Conn, buf []byte) error {
 		return err
 	}
 
-	//Receive bytes from bob, containing bob's pub key
+	//Receive bytes from bob, containing bob'pl pub key
 	n, err := conn.Read(buf)
 	if err != nil {
 		//log.Fatalf("Could not read from connection: %v\n", err)
 		return err
 	}
 
-	//Recover Bob's public key
+	//Recover Bob'pl public key
 	bobPubKey := dhkx.NewPublicKey(buf[:n])
 
 	//Compute shared key
@@ -333,14 +344,14 @@ func bob(link *Link, conn net.Conn, message hecomm.Message) error {
 	//Get public key from private key
 	pub := priv.Bytes()
 
-	//Already received bytes from alice, containing alice's pub key
+	//Already received bytes from alice, containing alice'pl pub key
 	//Check if right FPort
 	if message.FPort != hecomm.FPortLinkState {
 		//log.Fatalf("Received message in wrong FPort: %v\n", message)
 		return fmt.Errorf("Received message in wrong FPort: %v", message)
 	}
 
-	//Create message containig bob's pub key
+	//Create message containig bob'pl pub key
 	bytes, err := hecomm.NewMessage(hecomm.FPortLinkState, pub)
 	if err != nil {
 		//log.Fatalf("Could not create hecomm message: %v\n", err)
@@ -352,7 +363,7 @@ func bob(link *Link, conn net.Conn, message hecomm.Message) error {
 		return err
 	}
 
-	//Recover alice's public key
+	//Recover alice'pl public key
 	alicePubKey := dhkx.NewPublicKey(message.Data)
 
 	//Compute shared key
