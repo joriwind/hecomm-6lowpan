@@ -49,10 +49,10 @@ func NewServer(ctx context.Context, address string, credentials tls.Certificate,
 func (s *Server) Start() error {
 	config := tls.Config{Certificates: []tls.Certificate{s.credentials}}
 	listener, err := tls.Listen("tcp", "localhost:8000", &config)
-	defer listener.Close()
 	if err != nil {
 		return err
 	}
+	defer listener.Close()
 	chanConn := make(chan net.Conn, 1)
 	//Listen on tls port
 	for {
