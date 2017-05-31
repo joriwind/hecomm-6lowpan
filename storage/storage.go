@@ -5,7 +5,8 @@ import (
 
 	"log"
 
-	"github.com/joriwind/hecomm-fog/hecomm"
+	"github.com/joriwind/hecomm-api/hecomm"
+	"github.com/joriwind/hecomm-api/hecommAPI"
 )
 
 //Storage Contains the devices of the 6lowpan network
@@ -16,9 +17,9 @@ type Storage struct {
 //Node Connected node information
 type Node struct {
 	Addr   *net.UDPAddr
-	DevEUI string
+	DevEUI []byte
 	Link   hecomm.LinkContract
-	OsSKey [32]byte
+	OsSKey [hecommAPI.KeySize]byte
 	//AppSKey & NwkSKey managed by border router
 
 }
@@ -28,7 +29,7 @@ func NewStorage(nodes ...Node) *Storage {
 	st := Storage{}
 	if len(nodes) > 0 {
 		for _, node := range nodes {
-			st.nodes[node.DevEUI] = node
+			st.nodes[string(node.DevEUI[:])] = node
 		}
 	}
 	return &st
@@ -42,8 +43,8 @@ func (st *Storage) GetNode(deveui string) (Node, bool) {
 
 //AddNode Add a node to the storage
 func (st *Storage) AddNode(node Node) {
-	if _, ok := st.nodes[node.DevEUI]; ok {
+	if _, ok := st.nodes[string(node.DevEUI[:])]; ok {
 		log.Printf("Overwriting node: %v\n", node.DevEUI)
 	}
-	st.nodes[node.DevEUI] = node
+	st.nodes[string(node.DevEUI[:])] = node
 }

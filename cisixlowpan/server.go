@@ -81,7 +81,7 @@ func handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m, a)
 
 	//Creating new node
-	node := Node{Addr: a}
+	//node := storage.Node{Addr: a}
 
 	if m.IsConfirmable() {
 		res := &coap.Message{
