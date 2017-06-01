@@ -48,3 +48,13 @@ func (st *Storage) AddNode(node Node) {
 	}
 	st.nodes[string(node.DevEUI[:])] = node
 }
+
+//FindNode Try locating node in storage
+func (st *Storage) FindNode(address *net.UDPAddr) *Node {
+	for _, value := range st.nodes {
+		if value.Addr.String() == address.String() {
+			return &value
+		}
+	}
+	return nil
+}
