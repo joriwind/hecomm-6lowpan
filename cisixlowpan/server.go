@@ -92,9 +92,11 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 	//node := storage.Node{Addr: a}
 	node := s.store.FindNode(a)
 	if node != nil {
-		//Not available node, send NOK
-		log.Fatalf("handleReq failed, could not find node: %v\n", *a)
-		return nil
+		//Not known node
+		log.Printf("handleReq failed, could not find node: %v\n", *a)
+		//Add node to storage
+		node = &storage.Node{Addr: a, DevEUI: []byte(a.IP.String())}
+		s.store.AddNode(*node)
 	}
 
 	//Decode payload
