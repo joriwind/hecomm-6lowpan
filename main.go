@@ -20,12 +20,6 @@ import (
 	"github.com/joriwind/hecomm-api/hecommAPI"
 )
 
-type key int
-
-const (
-	keyStorageID key = iota
-)
-
 func main() {
 
 	//Flag init
@@ -52,15 +46,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cb := hecommSixlowpanAPI{store: store}
+	//Setup hecomm system
+	//Callback api initialisation
+	var cb hecommSixlowpanAPI
+	cb = hecommSixlowpanAPI{store: store}
 	//Start hecomm platform
-	hecommAPI.NewPlatform(ctx, "", tls.Certificate{}, nil, cb)
-
-	ctxv := context.WithValue(ctx, keyStorageID, store)
+	pl, err := hecommAPI.NewPlatform(ctx, "", tls.Certificate{}, nil, cb.pushKey)
+	if err != nil {
+		log.Fatalf("Not able to create hecomm platform: %v\n", err)
+	}
 
 	//Starting 6LoWPAN server
 	channel := make(chan cisixlowpan.Message)
-	server := cisixlowpan.NewServer(ctx, channel, *srvAddress)
+	server := cisixlowpan.NewServer(ctx, channel, *srvAddress, store, pl)
 	go func() {
 		err := server.Start()
 		if err != nil {
@@ -105,4 +103,18 @@ func main() {
 			}
 		}
 	}
+}
+
+type hecommSixlowpanAPI struct {
+	store *storage.Storage
+}
+
+func (api hecommSixlowpanAPI) pushKey(deveui []byte, key []byte) error {
+	//Add item, pushing key down to node
+	node, ok := api.store.GetNode(string(deveui[:]))
+	if !ok {
+		return fmt.Errorf("Not able to locate node: %v", string(deveui[:]))
+	}
+	err := cisixlowpan.SendCoapRequest(coap.POST, node.Addr.String(), "/key", string(key[:]))
+	return err
 }
