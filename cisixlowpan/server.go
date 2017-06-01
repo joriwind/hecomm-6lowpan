@@ -5,7 +5,11 @@ import (
 	"log"
 	"net"
 
+	"encoding/binary"
+
 	coap "github.com/dustin/go-coap"
+	"github.com/joriwind/hecomm-6lowpan/storage"
+	"github.com/joriwind/hecomm-api/hecommAPI"
 )
 
 //Server Object defining the server
@@ -13,14 +17,18 @@ type Server struct {
 	ctx     context.Context
 	comlink chan Message
 	address net.UDPAddr
+	hecomm  *hecommAPI.Platform
+	store   *storage.Storage
 }
 
 //NewServer create new server
-func NewServer(ctx context.Context, comlink chan Message, host net.UDPAddr) *Server {
+func NewServer(ctx context.Context, comlink chan Message, host net.UDPAddr, store *storage.Storage, pl *hecommAPI.Platform) *Server {
 	return &Server{
 		ctx:     ctx,
 		comlink: comlink,
 		address: host,
+		store:   store,
+		hecomm:  pl,
 	}
 }
 
@@ -33,8 +41,8 @@ func (s *Server) Start() error {
 	defer ln.Close()
 
 	mux := coap.NewServeMux()
-	mux.Handle("/hello", coap.FuncHandler(handleHello))
-	mux.Handle("/req", coap.FuncHandler(handleReq))
+	mux.Handle("/hello", coap.FuncHandler(s.handleHello))
+	mux.Handle("/req", coap.FuncHandler(s.handleReq))
 
 	log.Printf("Startin UDP server on %v\n", &s.address)
 
@@ -57,7 +65,7 @@ func (s *Server) Start() error {
 }
 
 //handleHello Handle the hello path request
-func handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
+func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	log.Printf("Got message in handleHello: path=%q: %#v from %v", m.Path(), m, a)
 	if m.IsConfirmable() {
 		res := &coap.Message{
@@ -76,12 +84,27 @@ func handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message 
 }
 
 //handleReq Handle the request path
-func handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
+func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	//TODO: startup hecomm protocol
 	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m, a)
 
 	//Creating new node
 	//node := storage.Node{Addr: a}
+	node := s.store.FindNode(a)
+	if node != nil {
+		//Not available node, send NOK
+		log.Fatalf("handleReq failed, could not find node: %v\n", *a)
+		return nil
+	}
+
+	//Decode payload
+	infType := binary.BigEndian.Uint32(m.Payload)
+	if infType < 1 {
+		log.Printf("handleReq failed, not able to decode payload: %v\n", m.Payload)
+	}
+
+	//Start hecomm protocol
+	s.hecomm.RequestLink(node.DevEUI, int(infType))
 
 	if m.IsConfirmable() {
 		res := &coap.Message{
