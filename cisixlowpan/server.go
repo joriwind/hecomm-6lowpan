@@ -9,6 +9,7 @@ import (
 
 	coap "github.com/dustin/go-coap"
 	"github.com/joriwind/hecomm-6lowpan/storage"
+	"github.com/joriwind/hecomm-api/hecomm"
 	"github.com/joriwind/hecomm-api/hecommAPI"
 )
 
@@ -93,10 +94,24 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 	node := s.store.FindNode(a)
 	if node != nil {
 		//Not known node
-		log.Printf("handleReq failed, could not find node: %v\n", *a)
+		log.Printf("could not find node, adding new one: %v\n", *a)
 		//Add node to storage
 		node = &storage.Node{Addr: a, DevEUI: []byte(a.IP.String())}
 		s.store.AddNode(*node)
+		//Register node to fog hecomm
+		nodes := []hecomm.DBCNode{
+			hecomm.DBCNode{
+				DevEUI:     node.DevEUI,
+				InfType:    1,
+				IsProvider: false,
+				PlAddress:  s.address.String(),
+				PlType:     hecomm.CISixlowpan,
+			},
+		}
+		err := hecommAPI.RegisterNodes(nodes)
+		if err != nil {
+			log.Fatalf("Could not register node in hecomm fog: %v\n", err)
+		}
 	}
 
 	//Decode payload

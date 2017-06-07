@@ -17,7 +17,12 @@ import (
 	coap "github.com/dustin/go-coap"
 	"github.com/joriwind/hecomm-6lowpan/cisixlowpan"
 	"github.com/joriwind/hecomm-6lowpan/storage"
+	"github.com/joriwind/hecomm-api/hecomm"
 	"github.com/joriwind/hecomm-api/hecommAPI"
+)
+
+const (
+	hecommAddress string = "192.168.1.224:5000"
 )
 
 func main() {
@@ -51,10 +56,17 @@ func main() {
 	var cb hecommSixlowpanAPI
 	cb = hecommSixlowpanAPI{store: store}
 	//Start hecomm platform
-	pl, err := hecommAPI.NewPlatform(ctx, "", tls.Certificate{}, nil, cb.pushKey)
+	pl, err := hecommAPI.NewPlatform(ctx, hecommAddress, tls.Certificate{}, nil, cb.pushKey)
 	if err != nil {
 		log.Fatalf("Not able to create hecomm platform: %v\n", err)
 	}
+
+	//register
+	plHecomm := hecomm.DBCPlatform{
+		Address: hecommAddress,
+		CI:      hecomm.CISixlowpan,
+	}
+	err = hecommAPI.RegisterPlatform(plHecomm)
 
 	//Starting 6LoWPAN server
 	channel := make(chan cisixlowpan.Message)
