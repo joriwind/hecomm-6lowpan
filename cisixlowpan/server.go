@@ -108,7 +108,7 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 				PlType:     hecomm.CISixlowpan,
 			},
 		}
-		err := hecommAPI.RegisterNodes(nodes)
+		err := hecommAPI.RegisterNodes(nodes, s.hecomm.Config)
 		if err != nil {
 			log.Fatalf("Could not register node in hecomm fog: %v\n", err)
 		}

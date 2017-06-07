@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -22,7 +24,9 @@ import (
 )
 
 const (
-	hecommAddress string = "192.168.1.224:5000"
+	hecommAddress string = "192.168.1.123:2001"
+	sixlowpanCert string = "certs/6lowpan.pem"
+	sixlowpanKey  string = "certs/6lowpan-key.unencrypted.pem"
 )
 
 func main() {
@@ -55,8 +59,28 @@ func main() {
 	//Callback api initialisation
 	var cb hecommSixlowpanAPI
 	cb = hecommSixlowpanAPI{store: store}
+	//Certificates
+	cert, err := tls.LoadX509KeyPair(sixlowpanCert, sixlowpanKey)
+	if err != nil {
+		log.Fatalf("fogcore: tls error: loadkeys: %s", err)
+		return
+	}
+
+	caCert, err := ioutil.ReadFile(sixlowpanCert)
+	if err != nil {
+		log.Fatalf("cacert error: %v\n", err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	config := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		ClientCAs:          caCertPool,
+		InsecureSkipVerify: true,
+	}
+
 	//Start hecomm platform
-	pl, err := hecommAPI.NewPlatform(ctx, hecommAddress, tls.Certificate{}, nil, cb.pushKey)
+	pl, err := hecommAPI.NewPlatform(ctx, hecommAddress, config, nil, cb.pushKey)
 	if err != nil {
 		log.Fatalf("Not able to create hecomm platform: %v\n", err)
 	}
@@ -66,7 +90,14 @@ func main() {
 		Address: hecommAddress,
 		CI:      hecomm.CISixlowpan,
 	}
-	err = hecommAPI.RegisterPlatform(plHecomm)
+	err = hecommAPI.RegisterPlatform(plHecomm, config)
+	if err != nil {
+		log.Fatalf("Could not register platform: %v\n", err)
+	}
+	log.Printf("Platform: %v, configured in fog\n", plHecomm)
+
+	//Start hecomm server
+	go pl.Start()
 
 	//Starting 6LoWPAN server
 	channel := make(chan cisixlowpan.Message)
