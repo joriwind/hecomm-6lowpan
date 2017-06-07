@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	hecommAddress string = "192.168.1.123:2001"
+	hecommAddress string = "192.168.2.123:2001"
 	sixlowpanCert string = "certs/6lowpan.pem"
 	sixlowpanKey  string = "certs/6lowpan-key.unencrypted.pem"
 )
@@ -90,6 +90,7 @@ func main() {
 		Address: hecommAddress,
 		CI:      hecomm.CISixlowpan,
 	}
+	log.Println("hecomm: registering platform")
 	err = hecommAPI.RegisterPlatform(plHecomm, config)
 	if err != nil {
 		log.Fatalf("Could not register platform: %v\n", err)
