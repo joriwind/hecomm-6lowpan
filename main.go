@@ -38,11 +38,8 @@ func main() {
 	}
 
 	//Resolve UDP server address
-	address := flag.String("address", "[::1]:5683", "Server address of UDP listener")
+	address := flag.String("address", "[aaaa::1]:5683", "Server address of UDP listener")
 	flag.Parse()
-	if "" == *address {
-		*address = "[::1]:5683"
-	}
 	srvAddress, err := net.ResolveUDPAddr("udp6", *address)
 	if err != nil {
 		log.Printf("Not valid UDP server address: %v, err = %v\n", *address, err)
