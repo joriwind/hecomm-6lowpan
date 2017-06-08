@@ -67,7 +67,7 @@ func (s *Server) Start() error {
 
 //handleHello Handle the hello path request
 func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
-	log.Printf("Got message in handleHello: path=%q: %#v from %v", m.Path(), m, a)
+	log.Printf("Got message in handleHello: path=%q: %#v from %v", m.Path(), m.Payload, a)
 	if m.IsConfirmable() {
 		res := &coap.Message{
 			Type:      coap.Acknowledgement,
@@ -87,7 +87,7 @@ func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *c
 //handleReq Handle the request path
 func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	//TODO: startup hecomm protocol
-	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m, a)
+	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m.Payload, a)
 
 	//Creating new node
 	//node := storage.Node{Addr: a}
