@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	hecommAddress string = "192.168.2.123:2001"
+	//hecommAddress string = "192.168.2.123:2001"
 	sixlowpanCert string = "certs/6lowpan.pem"
 	sixlowpanKey  string = "certs/6lowpan-key.unencrypted.pem"
 )
@@ -41,6 +41,14 @@ func main() {
 	address := flag.String("address", "[aaaa::1]:5683", "Server address of UDP listener")
 	flag.Parse()
 	srvAddress, err := net.ResolveUDPAddr("udp6", *address)
+	if err != nil {
+		log.Printf("Not valid UDP server address: %v, err = %v\n", *address, err)
+		return
+	}
+
+	address = flag.String("hostHecomm", "192.168.2.123:2001", "Server address of hecomm listener")
+	flag.Parse()
+	hecommAddress := *address
 	if err != nil {
 		log.Printf("Not valid UDP server address: %v, err = %v\n", *address, err)
 		return
@@ -138,6 +146,19 @@ func main() {
 
 			case "help":
 
+			case "test":
+				//subcommand := strings.SplitN(command[1], " ", 2)
+				switch command[1] {
+				case "req":
+					log.Printf("Testing request\n")
+					err = cisixlowpan.TestReq(srvAddress.String())
+					if err != nil {
+						log.Printf("Error occurred in test: %v\n", err)
+					}
+				default:
+					log.Printf("Not implemented test!\n")
+				}
+
 			case "":
 			default:
 				fmt.Printf("Did not understand command: %v\n", command[0])
@@ -156,6 +177,6 @@ func (api hecommSixlowpanAPI) pushKey(deveui []byte, key []byte) error {
 	if !ok {
 		return fmt.Errorf("Not able to locate node: %v", string(deveui[:]))
 	}
-	err := cisixlowpan.SendCoapRequest(coap.POST, node.Addr.String(), "/key", string(key[:]))
+	err := cisixlowpan.SendCoapRequest(coap.POST, node.Addr.String()+":5683", cisixlowpan.APIClientKey, string(key[:]))
 	return err
 }

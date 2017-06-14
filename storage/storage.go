@@ -27,6 +27,7 @@ type Node struct {
 //NewStorage Creating the global place to store and retrieve nodes
 func NewStorage(nodes ...Node) *Storage {
 	st := Storage{}
+	st.nodes = make(map[string]Node)
 	if len(nodes) > 0 {
 		for _, node := range nodes {
 			st.nodes[string(node.DevEUI[:])] = node

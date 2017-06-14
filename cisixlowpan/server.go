@@ -1,11 +1,11 @@
 package cisixlowpan
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"log"
 	"net"
-
-	"encoding/binary"
 
 	coap "github.com/dustin/go-coap"
 	"github.com/joriwind/hecomm-6lowpan/storage"
@@ -21,6 +21,14 @@ type Server struct {
 	hecomm  *hecommAPI.Platform
 	store   *storage.Storage
 }
+
+//Some exports easier to use in global program
+const (
+	APIReq   string = "/req"
+	APIHello string = "/hello"
+
+	APIClientKey string = "/key"
+)
 
 //NewServer create new server
 func NewServer(ctx context.Context, comlink chan Message, host net.UDPAddr, store *storage.Storage, pl *hecommAPI.Platform) *Server {
@@ -42,8 +50,8 @@ func (s *Server) Start() error {
 	defer ln.Close()
 
 	mux := coap.NewServeMux()
-	mux.Handle("/hello", coap.FuncHandler(s.handleHello))
-	mux.Handle("/req", coap.FuncHandler(s.handleReq))
+	mux.Handle(APIHello, coap.FuncHandler(s.handleHello))
+	mux.Handle(APIReq, coap.FuncHandler(s.handleReq))
 
 	log.Printf("Startin UDP server on %v\n", &s.address)
 
@@ -87,12 +95,12 @@ func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *c
 //handleReq Handle the request path
 func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	//TODO: startup hecomm protocol
-	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m.Payload, a)
+	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m.Payload, a.String())
 
 	//Creating new node
 	//node := storage.Node{Addr: a}
 	node := s.store.FindNode(a)
-	if node != nil {
+	if node == nil {
 		//Not known node
 		log.Printf("could not find node, adding new one: %v\n", *a)
 		//Add node to storage
@@ -104,24 +112,42 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 				DevEUI:     node.DevEUI,
 				InfType:    1,
 				IsProvider: false,
-				PlAddress:  s.address.String(),
+				PlAddress:  s.hecomm.Address,
 				PlType:     hecomm.CISixlowpan,
 			},
 		}
 		err := hecommAPI.RegisterNodes(nodes, s.hecomm.Config)
 		if err != nil {
-			log.Fatalf("Could not register node in hecomm fog: %v\n", err)
+			log.Printf("Could not register node in hecomm fog: %v\n", err)
+			return nil
 		}
+		log.Printf("Registered new node in storage and hecommAPI: %v\n", node.Addr)
 	}
 
 	//Decode payload
-	infType := binary.BigEndian.Uint32(m.Payload)
+	//infType := binary.BigEndian.Uint32(m.Payload)
+	buf := bytes.NewBuffer(m.Payload) // b is []byte
+	infType, err := binary.ReadUvarint(buf)
+	if err != nil {
+		log.Printf("Could read int from payload: %v\n", err)
+		return nil
+	}
 	if infType < 1 {
-		log.Printf("handleReq failed, not able to decode payload: %v\n", m.Payload)
+		log.Printf("handleReq failed, not able to decode payload: %v\n", infType)
+		return nil
 	}
 
 	//Start hecomm protocol
-	s.hecomm.RequestLink(node.DevEUI, int(infType))
+	if s.hecomm == nil {
+		log.Printf("No hecomm configured\n")
+		return nil
+	}
+	log.Printf("Starting requetlink with fog: node: %v, infType: %v using pl: %v", node, infType, s.hecomm)
+	err = s.hecomm.RequestLink(node.DevEUI, int(infType))
+	if err != nil {
+		log.Printf("Error in requesting link: %v\n", err)
+		return nil
+	}
 
 	if m.IsConfirmable() {
 		res := &coap.Message{
