@@ -96,14 +96,21 @@ func main() {
 		CI:      hecomm.CISixlowpan,
 	}
 	log.Println("hecomm: registering platform")
-	err = hecommAPI.RegisterPlatform(plHecomm, config)
+	err = pl.RegisterPlatform(plHecomm)
 	if err != nil {
 		log.Fatalf("Could not register platform: %v\n", err)
 	}
 	log.Printf("Platform: %v, configured in fog\n", plHecomm)
 
 	//Start hecomm server
-	go pl.Start()
+	go func() {
+		err := pl.Start()
+		if err != nil {
+			log.Fatalf("Hecomm platform exited with error: %v\n", err)
+		} else {
+			log.Println("Hecomm platform server stopped!")
+		}
+	}()
 
 	//Starting 6LoWPAN server
 	channel := make(chan cisixlowpan.Message)
