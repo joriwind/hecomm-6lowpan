@@ -180,10 +180,13 @@ type hecommSixlowpanAPI struct {
 
 func (api hecommSixlowpanAPI) pushKey(deveui []byte, key []byte) error {
 	//Add item, pushing key down to node
+	log.Printf("Pushing key to node: %v, key: %v", deveui, key)
 	node, ok := api.store.GetNode(string(deveui[:]))
 	if !ok {
 		return fmt.Errorf("Not able to locate node: %v", string(deveui[:]))
 	}
-	err := cisixlowpan.SendCoapRequest(coap.POST, node.Addr.String()+":5683", cisixlowpan.APIClientKey, string(key[:]))
+	//Send coap post request to coap server of node
+	node.Addr.Port = 5683
+	err := cisixlowpan.SendCoapRequest(coap.POST, node.Addr.String(), cisixlowpan.APIClientKey, string(key[:]))
 	return err
 }
