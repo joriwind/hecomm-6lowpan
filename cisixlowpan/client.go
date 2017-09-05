@@ -10,7 +10,7 @@ import (
 func SendCoapRequest(code coap.COAPCode, destination string, path string, payload string) error {
 	req := coap.Message{
 		Type:      coap.Confirmable,
-		Code:      coap.GET,
+		Code:      code,
 		MessageID: 12345,
 		Payload:   []byte(payload),
 	}

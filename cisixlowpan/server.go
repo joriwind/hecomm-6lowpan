@@ -27,7 +27,7 @@ const (
 	APIReq   string = "/req"
 	APIHello string = "/hello"
 
-	APIClientKey string = "/key"
+	APIClientKey string = "hecomm/osskey"
 )
 
 //NewServer create new server
@@ -76,7 +76,7 @@ func (s *Server) Start() error {
 //handleHello Handle the hello path request
 func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	log.Printf("Got message in handleHello: path=%q: %#v from %v", m.Path(), m.Payload, a)
-	defer l.Close()
+	//defer l.Close()
 	if m.IsConfirmable() {
 		res := &coap.Message{
 			Type:      coap.Acknowledgement,
@@ -97,7 +97,7 @@ func (s *Server) handleHello(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *c
 func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	//TODO: startup hecomm protocol
 	log.Printf("Got message in handleReq: path=%q: %#v from %v", m.Path(), m.Payload, a.String())
-	defer l.Close()
+	//defer l.Close()
 	//Creating new node
 	//node := storage.Node{Addr: a}
 	node := s.store.FindNode(a)
@@ -138,18 +138,7 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 		return nil
 	}
 
-	//Start hecomm protocol
-	if s.hecomm == nil {
-		log.Printf("No hecomm configured\n")
-		return nil
-	}
-	log.Printf("Starting requetlink with fog: node: %v, infType: %v using pl: %v", node, infType, s.hecomm)
-	err = s.hecomm.RequestLink(node.DevEUI, int(infType))
-	if err != nil {
-		log.Printf("Error in requesting link: %v\n", err)
-		return nil
-	}
-	log.Printf("Key established")
+	go s.requestLink(node.DevEUI, int(infType))
 
 	if m.IsConfirmable() {
 		res := &coap.Message{
@@ -165,4 +154,19 @@ func (s *Server) handleReq(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coa
 		return res
 	}
 	return nil
+}
+
+func (s Server) requestLink(node []byte, infType int) {
+	//Start hecomm protocol
+	if s.hecomm == nil {
+		log.Printf("No hecomm configured\n")
+		return
+	}
+	log.Printf("Starting requetlink with fog: node: %v, infType: %v using pl: %v", node, infType, s.hecomm)
+	err := s.hecomm.RequestLink(node, infType)
+	if err != nil {
+		log.Printf("Error in requesting link: %v\n", err)
+		return
+	}
+	log.Printf("Key established")
 }
