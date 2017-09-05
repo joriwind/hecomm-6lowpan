@@ -29,6 +29,40 @@ const (
 	sixlowpanKey  string = "certs/6lowpan-key.unencrypted.pem"
 )
 
+func getLocalIP() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Printf("Error in searching localIP: %v\n", err)
+		return ""
+	}
+	// handle err
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			log.Printf("Error in searching localIP: %v\n", err)
+			return ""
+		}
+		// handle err
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			//If it is not loopback, it should be ok
+			if !ip.IsLoopback() {
+
+				return ip.String()
+			}
+
+		}
+	}
+	log.Printf("No non loopback IP addresses found!\n")
+	return ""
+}
+
 func main() {
 
 	//Flag init
@@ -46,7 +80,12 @@ func main() {
 		return
 	}
 
-	address = flag.String("hostHecomm", "192.168.2.123:2001", "Server address of hecomm listener")
+	localIP := getLocalIP()
+	if localIP == "" {
+		localIP = "192.168.2.106"
+	}
+
+	address = flag.String("hostHecomm", localIP+":2001", "Server address of hecomm listener")
 	flag.Parse()
 	hecommAddress := *address
 	if err != nil {
