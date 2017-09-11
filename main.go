@@ -30,7 +30,7 @@ var ConfSixlowpanCert = "certs/6lowpan.cert.pem"
 var ConfSixlowpanKey = "private/6lowpan.key.pem"
 
 //ConfSixlowpanCaCert ...
-var ConfSixlowpanCaCert = "certs/ca-chain.pem"
+var ConfSixlowpanCaCert = "certs/ca-chain.cert.pem"
 
 func getLocalIP() string {
 	ifaces, err := net.Interfaces()
