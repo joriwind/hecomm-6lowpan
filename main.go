@@ -131,8 +131,8 @@ func main() {
 
 	config := &tls.Config{
 		Certificates:       []tls.Certificate{cert},
-		ClientCAs:          caCertPool,
-		InsecureSkipVerify: true,
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: false,
 	}
 
 	//Start hecomm platform
